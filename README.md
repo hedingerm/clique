@@ -1,6 +1,6 @@
 # Clique
 
-Streamline agent development with the BMAD (Build, Measure, Analyze, Deliver) methodology. This VS Code extension reads `sprint-status.yaml` files and provides a UI to run Claude workflows based on story status.
+Streamline agent development with the BMad-Methodology. This VS Code extension reads `sprint-status.yaml` files and provides a UI to run Claude workflows based on story status.
 
 ## Features
 
@@ -19,12 +19,12 @@ Stories progress through a defined workflow:
 backlog → create-story → ready-for-dev → dev-story → in-progress → review → code-review → done
 ```
 
-| Current Status | Action | Command |
-|----------------|--------|---------|
-| `backlog` | Create Story | `claude "/bmad:bmm:workflows:create-story <story-id>"` |
-| `ready-for-dev` | Start Dev | `claude "/bmad:bmm:workflows:dev-story <story-id>"` |
-| `review` | Code Review | `claude "/bmad:bmm:workflows:code-review <story-id>"` |
-| `in-progress`, `done` | No action | - |
+| Current Status        | Action       | Command                                                |
+| --------------------- | ------------ | ------------------------------------------------------ |
+| `backlog`             | Create Story | `claude "/bmad:bmm:workflows:create-story <story-id>"` |
+| `ready-for-dev`       | Start Dev    | `claude "/bmad:bmm:workflows:dev-story <story-id>"`    |
+| `review`              | Code Review  | `claude "/bmad:bmm:workflows:code-review <story-id>"`  |
+| `in-progress`, `done` | No action    | -                                                      |
 
 ## Usage
 
@@ -104,12 +104,12 @@ This extension currently has no configurable settings. The sprint file selection
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Clique: Run Workflow` | Run the appropriate workflow for the selected story |
-| `Clique: Refresh` | Reload the sprint-status.yaml file |
-| `Clique: Select Sprint File` | Choose which sprint-status.yaml to use |
-| `Clique: Set Status: *` | Change story status |
+| Command                      | Description                                         |
+| ---------------------------- | --------------------------------------------------- |
+| `Clique: Run Workflow`       | Run the appropriate workflow for the selected story |
+| `Clique: Refresh`            | Reload the sprint-status.yaml file                  |
+| `Clique: Select Sprint File` | Choose which sprint-status.yaml to use              |
+| `Clique: Set Status: *`      | Change story status                                 |
 
 ## Known Issues
 

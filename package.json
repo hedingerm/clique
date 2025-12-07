@@ -2,7 +2,7 @@
   "name": "clique",
   "displayName": "Clique",
   "description": "Streamline agent development with the BMAD method",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "hedinger-digital",
   "license": "MIT",
   "repository": {
@@ -33,7 +33,8 @@
     "Other"
   ],
   "activationEvents": [
-    "workspaceContains:**/sprint-status.yaml"
+    "workspaceContains:**/sprint-status.yaml",
+    "onView:cliqueStories"
   ],
   "main": "./out/extension.js",
   "contributes": {
