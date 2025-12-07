@@ -1,0 +1,6 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Square/window outlined -->
+  <rect x="2" y="2" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  <!-- Cursor/pointer outlined -->
+  <path d="M12 10L12 20L15 17L17.5 22L19.5 21L17 16L21 16L12 10Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+</svg>

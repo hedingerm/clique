@@ -2,7 +2,7 @@
   "name": "clique",
   "displayName": "Clique",
   "description": "Streamline agent development with BMAD method",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "hedinger-digital",
   "license": "MIT",
   "repository": {
@@ -41,8 +41,8 @@
       "activitybar": [
         {
           "id": "bmad-workflow",
-          "title": "BMAD Workflow",
-          "icon": "$(checklist)"
+          "title": "Clique",
+          "icon": "images/sidebar-icon.svg"
         }
       ]
     },
