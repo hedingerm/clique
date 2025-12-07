@@ -1,6 +1,6 @@
 # Clique
 
-Streamline agent development with the BMad-Methodology. This VS Code extension reads `sprint-status.yaml` files and provides a UI to run Claude workflows based on story status.
+Streamline agent development with the BMad-Method. This VS Code extension reads `sprint-status.yaml` files and provides a UI to run Claude workflows based on story status.
 
 ## Features
 
@@ -121,7 +121,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Acknowledgments
 
-This extension is built for the [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD) created by [Brian Madison](https://github.com/bmad-code-org). BMAD (Build, Measure, Analyze, Deliver) is a methodology for streamlined agent-driven development workflows.
+This extension is built for the [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD) created by [Brian Madison](https://github.com/bmad-code-org). BMAD is a methodology for streamlined agent-driven development workflows.
 
 ## License
 
