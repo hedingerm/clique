@@ -73,6 +73,10 @@ export class ImplementationTreeProvider extends BaseWorkflowProvider {
         this.refresh();
     }
 
+    override getTreeItem(element: ImplementationItem): vscode.TreeItem {
+        return element;
+    }
+
     override getChildren(element?: ImplementationItem): Thenable<ImplementationItem[]> {
         if (!element) {
             return this.getRootChildren();

@@ -87,8 +87,8 @@ export class WorkflowTreeItem extends vscode.TreeItem {
     }
 }
 
-export class BaseWorkflowProvider implements vscode.TreeDataProvider<WorkflowTreeItem> {
-    private _onDidChangeTreeData = new vscode.EventEmitter<WorkflowTreeItem | undefined>();
+export class BaseWorkflowProvider implements vscode.TreeDataProvider<any> {
+    private _onDidChangeTreeData = new vscode.EventEmitter<any>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
     protected workflowData: WorkflowData | null = null;
@@ -107,11 +107,16 @@ export class BaseWorkflowProvider implements vscode.TreeDataProvider<WorkflowTre
         this._onDidChangeTreeData.fire(undefined);
     }
 
-    getTreeItem(element: WorkflowTreeItem): vscode.TreeItem {
+    getTreeItem(element: any): vscode.TreeItem {
         return element;
     }
 
-    getChildren(): Thenable<WorkflowTreeItem[]> {
+    getChildren(element?: any): Thenable<any[]> {
+        if (element) {
+            // Base implementation doesn't support children
+            return Promise.resolve([]);
+        }
+
         if (!this.workflowData) {
             return Promise.resolve([]);
         }

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { Epic, Story, SprintData, StoryStatus } from './sprintParser';
+import { Epic, Story, SprintData, StoryStatus } from './core/types';
 import { isActionableStatus, getWorkflowAction } from './workflowRunner';
 
 type TreeItemType = 'epic' | 'story';
@@ -45,7 +45,7 @@ export class StoryItem extends vscode.TreeItem {
     private getTooltip(itemType: 'epic' | 'story', data: Epic | Story): string {
         if (itemType === 'epic') {
             const epic = data as Epic;
-            const done = epic.stories.filter(s => s.status === 'done').length;
+            const done = epic.stories.filter((s: Story) => s.status === 'done').length;
             return `${epic.name}: ${done}/${epic.stories.length} stories done`;
         }
         const story = data as Story;
@@ -100,7 +100,7 @@ export class StoryTreeProvider implements vscode.TreeDataProvider<StoryItem> {
         if (!element) {
             // Root level: show epics
             return Promise.resolve(
-                this.sprintData.epics.map(epic =>
+                this.sprintData.epics.map((epic: Epic) =>
                     new StoryItem(
                         'epic',
                         epic,
@@ -114,7 +114,7 @@ export class StoryTreeProvider implements vscode.TreeDataProvider<StoryItem> {
             // Epic level: show stories
             const epic = element.data as Epic;
             return Promise.resolve(
-                epic.stories.map(story =>
+                epic.stories.map((story: Story) =>
                     new StoryItem(
                         'story',
                         story,

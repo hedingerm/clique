@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { StoryStatus } from './sprintParser';
+import { StoryStatus } from './core/types';
 
 interface WorkflowAction {
     label: string;

@@ -1,56 +1,316 @@
+// src/extension.ts
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs';
-import { parseSprintStatus, findAllSprintStatusFiles, updateStoryStatus, Story, StoryStatus } from './sprintParser';
-import { StoryTreeProvider, StoryItem } from './storyTreeProvider';
-import { runWorkflow } from './workflowRunner';
 
-let sprintStatusPath: string | null = null;
-let fileWatcher: vscode.FileSystemWatcher | null = null;
-let nativeWatcher: fs.FSWatcher | null = null;
-let treeProvider: StoryTreeProvider;
+// Core imports
+import { parseWorkflowStatus, findWorkflowStatusFile, updateWorkflowItemStatus } from './core/workflowParser';
+import { parseSprintStatus, findAllSprintStatusFiles, updateStoryStatus } from './core/sprintParser';
+import { CliqueFileWatcher } from './core/fileWatcher';
+import { WorkflowData, SprintData, StoryStatus, WorkflowItem } from './core/types';
+
+// Phase providers
+import { DiscoveryTreeProvider } from './phases/discovery/treeProvider';
+import { PlanningTreeProvider } from './phases/planning/treeProvider';
+import { SolutioningTreeProvider } from './phases/solutioning/treeProvider';
+import { ImplementationTreeProvider, StoryTreeItem } from './phases/implementation/treeProvider';
+import { WorkflowTreeItem } from './phases/baseWorkflowProvider';
+
+// UI
+import { WorkflowDetailPanel } from './ui/detailPanel';
+import { WelcomeViewProvider } from './ui/welcomeView';
+
+// State
 let workspaceRoot: string | null = null;
+let workflowStatusPath: string | null = null;
+let sprintStatusPath: string | null = null;
+let fileWatcher: CliqueFileWatcher | null = null;
+
+// Providers
+let discoveryProvider: DiscoveryTreeProvider;
+let planningProvider: PlanningTreeProvider;
+let solutioningProvider: SolutioningTreeProvider;
+let implementationProvider: ImplementationTreeProvider;
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Clique Workflow extension activated');
-
-    treeProvider = new StoryTreeProvider();
+    console.log('Clique extension activated');
 
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders && workspaceFolders.length > 0) {
         workspaceRoot = workspaceFolders[0].uri.fsPath;
     }
 
-    // Register tree view
-    const treeView = vscode.window.createTreeView('cliqueStories', {
-        treeDataProvider: treeProvider,
+    // Initialize providers
+    discoveryProvider = new DiscoveryTreeProvider();
+    planningProvider = new PlanningTreeProvider();
+    solutioningProvider = new SolutioningTreeProvider();
+    implementationProvider = new ImplementationTreeProvider();
+
+    // Register tree views
+    const discoveryView = vscode.window.createTreeView('cliqueDiscovery', {
+        treeDataProvider: discoveryProvider,
+        showCollapseAll: false
+    });
+
+    const planningView = vscode.window.createTreeView('cliquePlanning', {
+        treeDataProvider: planningProvider,
+        showCollapseAll: false
+    });
+
+    const solutioningView = vscode.window.createTreeView('cliqueSolutioning', {
+        treeDataProvider: solutioningProvider,
+        showCollapseAll: false
+    });
+
+    const implementationView = vscode.window.createTreeView('cliqueImplementation', {
+        treeDataProvider: implementationProvider,
         showCollapseAll: true
     });
 
-    // Load initial data (auto-select if only one file, prompt if multiple)
-    initializeSprintFile(context);
+    // Register welcome view
+    const welcomeProvider = new WelcomeViewProvider(
+        context.extensionUri,
+        () => runWorkflowInit()
+    );
+    const welcomeView = vscode.window.registerWebviewViewProvider(
+        WelcomeViewProvider.viewType,
+        welcomeProvider
+    );
+
+    // Set up file watcher
+    fileWatcher = new CliqueFileWatcher({
+        onWorkflowChange: loadWorkflowData,
+        onSprintChange: loadSprintData
+    });
+    fileWatcher.setup();
+
+    // Initialize data
+    initializeFiles(context);
 
     // Register commands
-    const runWorkflowCmd = vscode.commands.registerCommand('clique.runWorkflow', (item: StoryItem) => {
-        if (item.itemType === 'story') {
-            const story = item.data as Story;
-            runWorkflow(story.id, story.status);
+    const commands = [
+        vscode.commands.registerCommand('clique.refresh', () => {
+            loadWorkflowData();
+            loadSprintData();
+            vscode.window.showInformationMessage('Clique: Refreshed');
+        }),
+
+        vscode.commands.registerCommand('clique.selectFile', () => selectSprintFile(context)),
+
+        vscode.commands.registerCommand('clique.showWorkflowDetail', (item: WorkflowTreeItem) => {
+            if (item.workflowItem) {
+                showWorkflowDetail(context.extensionUri, item.workflowItem);
+            }
+        }),
+
+        vscode.commands.registerCommand('clique.runPhaseWorkflow', (item: WorkflowTreeItem) => {
+            if (item.workflowItem) {
+                runPhaseWorkflow(item.workflowItem);
+            }
+        }),
+
+        vscode.commands.registerCommand('clique.skipWorkflow', (item: WorkflowTreeItem) => {
+            if (item.workflowItem && workflowStatusPath) {
+                skipWorkflow(item.workflowItem);
+            }
+        }),
+
+        vscode.commands.registerCommand('clique.initializeWorkflow', () => runWorkflowInit()),
+
+        // Legacy story commands
+        vscode.commands.registerCommand('clique.runWorkflow', (item: StoryTreeItem) => {
+            if (item.itemType === 'story' && item.data) {
+                const story = item.data as { id: string; status: StoryStatus };
+                runStoryWorkflow(story.id, story.status);
+            }
+        }),
+
+        ...registerStatusCommands(context)
+    ];
+
+    context.subscriptions.push(
+        discoveryView, planningView, solutioningView, implementationView,
+        welcomeView, ...commands
+    );
+
+    if (fileWatcher) {
+        context.subscriptions.push(fileWatcher);
+    }
+}
+
+function initializeFiles(context: vscode.ExtensionContext): void {
+    if (!workspaceRoot) {
+        updateHasWorkflowContext(false);
+        return;
+    }
+
+    // Find workflow status file
+    workflowStatusPath = findWorkflowStatusFile(workspaceRoot);
+
+    if (workflowStatusPath) {
+        updateHasWorkflowContext(true);
+        loadWorkflowData();
+        fileWatcher?.watchFile(workflowStatusPath, 'workflow');
+    } else {
+        updateHasWorkflowContext(false);
+    }
+
+    // Find sprint status file
+    const savedSprintPath = context.workspaceState.get<string>('clique.selectedFile');
+    if (savedSprintPath) {
+        sprintStatusPath = savedSprintPath;
+        loadSprintData();
+    } else {
+        const sprintFiles = findAllSprintStatusFiles(workspaceRoot);
+        if (sprintFiles.length === 1) {
+            sprintStatusPath = sprintFiles[0];
+            context.workspaceState.update('clique.selectedFile', sprintStatusPath);
+            loadSprintData();
+        }
+    }
+
+    if (sprintStatusPath) {
+        fileWatcher?.watchFile(sprintStatusPath, 'sprint');
+    }
+}
+
+function updateHasWorkflowContext(hasFile: boolean): void {
+    vscode.commands.executeCommand('setContext', 'clique.hasWorkflowFile', hasFile);
+}
+
+function loadWorkflowData(): void {
+    if (!workflowStatusPath) {
+        const data = null;
+        discoveryProvider.setData(data);
+        planningProvider.setData(data);
+        solutioningProvider.setData(data);
+        implementationProvider.setData(data);
+        return;
+    }
+
+    const data = parseWorkflowStatus(workflowStatusPath);
+    discoveryProvider.setData(data);
+    planningProvider.setData(data);
+    solutioningProvider.setData(data);
+    implementationProvider.setData(data);
+
+    if (data) {
+        console.log(`Clique: Loaded ${data.items.length} workflow items`);
+    }
+}
+
+function loadSprintData(): void {
+    if (!sprintStatusPath) {
+        implementationProvider.setSprintData(null);
+        return;
+    }
+
+    const data = parseSprintStatus(sprintStatusPath);
+    implementationProvider.setSprintData(data);
+
+    if (data) {
+        const totalStories = data.epics.reduce((sum, e) => sum + e.stories.length, 0);
+        console.log(`Clique: Loaded ${totalStories} stories`);
+    }
+}
+
+async function selectSprintFile(context: vscode.ExtensionContext): Promise<void> {
+    if (!workspaceRoot) return;
+
+    const files = findAllSprintStatusFiles(workspaceRoot);
+    if (files.length === 0) {
+        vscode.window.showWarningMessage('Clique: No sprint-status.yaml files found');
+        return;
+    }
+
+    const items = files.map(file => ({
+        label: path.relative(workspaceRoot!, file),
+        description: file === sprintStatusPath ? '(current)' : '',
+        fullPath: file
+    }));
+
+    const selected = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Select sprint-status.yaml file'
+    });
+
+    if (selected) {
+        sprintStatusPath = selected.fullPath;
+        context.workspaceState.update('clique.selectedFile', sprintStatusPath);
+        loadSprintData();
+        fileWatcher?.watchFile(sprintStatusPath, 'sprint');
+        vscode.window.showInformationMessage(`Clique: Using ${selected.label}`);
+    }
+}
+
+function showWorkflowDetail(extensionUri: vscode.Uri, item: WorkflowItem): void {
+    WorkflowDetailPanel.show(
+        extensionUri,
+        item,
+        () => runPhaseWorkflow(item),
+        () => skipWorkflow(item)
+    );
+}
+
+function runPhaseWorkflow(item: WorkflowItem): void {
+    const command = `claude "/bmad:bmm:workflows:${item.command}"`;
+    const terminalName = `Clique: ${item.id}`;
+    const terminal = vscode.window.createTerminal(terminalName);
+    terminal.sendText(command);
+    terminal.show();
+
+    vscode.window.showInformationMessage(
+        `Running ${item.id}`,
+        'Show Terminal'
+    ).then(action => {
+        if (action === 'Show Terminal') {
+            terminal.show();
         }
     });
+}
 
-    const refreshCmd = vscode.commands.registerCommand('clique.refresh', () => {
-        loadSprintData();
-        vscode.window.showInformationMessage('Clique: Refreshed sprint status');
-    });
+function skipWorkflow(item: WorkflowItem): void {
+    if (!workflowStatusPath) return;
 
-    const selectFileCmd = vscode.commands.registerCommand('clique.selectFile', () => {
-        selectSprintFile(context);
-    });
+    const success = updateWorkflowItemStatus(workflowStatusPath, item.id, 'skipped');
+    if (success) {
+        loadWorkflowData();
+        vscode.window.showInformationMessage(`Skipped: ${item.id}`);
+    } else {
+        vscode.window.showErrorMessage(`Failed to skip: ${item.id}`);
+    }
+}
 
-    // Register set status commands
-    const setStatusHandler = (newStatus: StoryStatus) => (item: StoryItem) => {
-        if (item.itemType === 'story' && sprintStatusPath) {
-            const story = item.data as Story;
+function runWorkflowInit(): void {
+    const command = 'claude "/bmad:bmm:workflows:workflow-init"';
+    const terminal = vscode.window.createTerminal('Clique: Initialize');
+    terminal.sendText(command);
+    terminal.show();
+}
+
+function runStoryWorkflow(storyId: string, status: StoryStatus): void {
+    const actions: Partial<Record<StoryStatus, { label: string; command: string }>> = {
+        'backlog': { label: 'Create Story', command: 'create-story' },
+        'ready-for-dev': { label: 'Start Dev', command: 'dev-story' },
+        'review': { label: 'Code Review', command: 'code-review' }
+    };
+
+    const action = actions[status];
+    if (!action) {
+        vscode.window.showWarningMessage(`No workflow action for status: ${status}`);
+        return;
+    }
+
+    const command = `claude "/bmad:bmm:workflows:${action.command} ${storyId}"`;
+    const terminal = vscode.window.createTerminal(`Clique: ${storyId}`);
+    terminal.sendText(command);
+    terminal.show();
+
+    vscode.window.showInformationMessage(`Running ${action.label} for ${storyId}`);
+}
+
+function registerStatusCommands(context: vscode.ExtensionContext): vscode.Disposable[] {
+    const handler = (newStatus: StoryStatus) => (item: StoryTreeItem) => {
+        if (item.itemType === 'story' && item.data && sprintStatusPath) {
+            const story = item.data as { id: string };
             const success = updateStoryStatus(sprintStatusPath, story.id, newStatus);
             if (success) {
                 loadSprintData();
@@ -61,206 +321,17 @@ export function activate(context: vscode.ExtensionContext) {
         }
     };
 
-    const setBacklogCmd = vscode.commands.registerCommand('clique.setStatus.backlog', setStatusHandler('backlog'));
-    const setReadyCmd = vscode.commands.registerCommand('clique.setStatus.readyForDev', setStatusHandler('ready-for-dev'));
-    const setInProgressCmd = vscode.commands.registerCommand('clique.setStatus.inProgress', setStatusHandler('in-progress'));
-    const setReviewCmd = vscode.commands.registerCommand('clique.setStatus.review', setStatusHandler('review'));
-    const setDoneCmd = vscode.commands.registerCommand('clique.setStatus.done', setStatusHandler('done'));
-
-    // Watch for file changes
-    setupFileWatcher();
-
-    context.subscriptions.push(
-        treeView, runWorkflowCmd, refreshCmd, selectFileCmd,
-        setBacklogCmd, setReadyCmd, setInProgressCmd, setReviewCmd, setDoneCmd
-    );
-
-    if (fileWatcher) {
-        context.subscriptions.push(fileWatcher);
-    }
-}
-
-async function initializeSprintFile(context: vscode.ExtensionContext): Promise<void> {
-    if (!workspaceRoot) {
-        treeProvider.setData(null);
-        return;
-    }
-
-    // Check if we have a saved selection
-    const savedPath = context.workspaceState.get<string>('clique.selectedFile');
-    if (savedPath) {
-        sprintStatusPath = savedPath;
-        loadSprintData();
-        return;
-    }
-
-    // Find all sprint-status.yaml files
-    const files = findAllSprintStatusFiles(workspaceRoot);
-
-    if (files.length === 0) {
-        vscode.window.showWarningMessage('Clique: No sprint-status.yaml found in workspace');
-        treeProvider.setData(null);
-    } else if (files.length === 1) {
-        sprintStatusPath = files[0];
-        context.workspaceState.update('clique.selectedFile', sprintStatusPath);
-        loadSprintData();
-    } else {
-        // Multiple files found, prompt user
-        await selectSprintFile(context);
-    }
-}
-
-async function selectSprintFile(context: vscode.ExtensionContext): Promise<void> {
-    if (!workspaceRoot) {
-        return;
-    }
-
-    const files = findAllSprintStatusFiles(workspaceRoot);
-
-    if (files.length === 0) {
-        vscode.window.showWarningMessage('Clique: No sprint-status.yaml files found');
-        return;
-    }
-
-    // Create quick pick items with relative paths
-    const items = files.map(file => ({
-        label: path.relative(workspaceRoot!, file),
-        description: file === sprintStatusPath ? '(current)' : '',
-        fullPath: file
-    }));
-
-    const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Select sprint-status.yaml file',
-        title: 'Clique: Select Sprint File'
-    });
-
-    if (selected) {
-        sprintStatusPath = selected.fullPath;
-        context.workspaceState.update('clique.selectedFile', sprintStatusPath);
-        loadSprintData();
-        vscode.window.showInformationMessage(`Clique: Using ${selected.label}`);
-    }
-}
-
-let lastWatchedPath: string | null = null;
-
-function loadSprintData(): void {
-    if (!sprintStatusPath) {
-        treeProvider.setData(null);
-        return;
-    }
-
-    const data = parseSprintStatus(sprintStatusPath);
-    treeProvider.setData(data);
-
-    // Re-setup native watcher if the file path changed
-    if (sprintStatusPath !== lastWatchedPath) {
-        lastWatchedPath = sprintStatusPath;
-        setupNativeWatcher();
-    }
-
-    if (data) {
-        const totalStories = data.epics.reduce((sum, e) => sum + e.stories.length, 0);
-        const doneStories = data.epics.reduce(
-            (sum, e) => sum + e.stories.filter(s => s.status === 'done').length,
-            0
-        );
-        console.log(`Clique: Loaded ${totalStories} stories (${doneStories} done) from ${sprintStatusPath}`);
-    }
-}
-
-function setupFileWatcher(): void {
-    if (fileWatcher) {
-        fileWatcher.dispose();
-    }
-
-    fileWatcher = vscode.workspace.createFileSystemWatcher('**/sprint-status.yaml');
-
-    fileWatcher.onDidChange((uri) => {
-        if (uri.fsPath === sprintStatusPath) {
-            loadSprintData();
-        }
-    });
-
-    fileWatcher.onDidCreate(() => {
-        // A new file was created, could prompt user
-    });
-
-    fileWatcher.onDidDelete((uri) => {
-        if (uri.fsPath === sprintStatusPath) {
-            sprintStatusPath = null;
-            treeProvider.setData(null);
-        }
-    });
-
-    // Also set up native watcher for the specific file (more reliable for external changes)
-    setupNativeWatcher();
-}
-
-function setupNativeWatcher(): void {
-    // Dispose existing native watcher
-    if (nativeWatcher) {
-        nativeWatcher.close();
-        nativeWatcher = null;
-    }
-
-    if (!sprintStatusPath || !fs.existsSync(sprintStatusPath)) {
-        return;
-    }
-
-    // Debounce to avoid multiple rapid reloads
-    let debounceTimer: NodeJS.Timeout | null = null;
-    const debounceMs = 300;
-
-    const triggerReload = (reason: string) => {
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
-        }
-        debounceTimer = setTimeout(() => {
-            console.log(`Clique: Native watcher detected ${reason}`);
-            loadSprintData();
-        }, debounceMs);
-    };
-
-    try {
-        nativeWatcher = fs.watch(sprintStatusPath, (eventType) => {
-            if (eventType === 'change') {
-                triggerReload('file change');
-            } else if (eventType === 'rename') {
-                // 'rename' event fires when file is replaced via atomic write
-                // (write to temp file, then rename). This is common for editors
-                // and tools like Claude Code. After a rename, the watcher becomes
-                // invalid since it was watching the old inode, so we must re-setup.
-                triggerReload('file replacement');
-
-                // Re-establish watcher after a short delay (file may still be in flux)
-                setTimeout(() => {
-                    if (sprintStatusPath && fs.existsSync(sprintStatusPath)) {
-                        setupNativeWatcher();
-                    }
-                }, 100);
-            }
-        });
-
-        nativeWatcher.on('error', (error) => {
-            console.error('Clique: Native file watcher error:', error);
-            // Try to re-establish watcher on error
-            setTimeout(() => {
-                if (sprintStatusPath && fs.existsSync(sprintStatusPath)) {
-                    setupNativeWatcher();
-                }
-            }, 1000);
-        });
-    } catch (error) {
-        console.error('Clique: Failed to set up native file watcher:', error);
-    }
+    return [
+        vscode.commands.registerCommand('clique.setStatus.backlog', handler('backlog')),
+        vscode.commands.registerCommand('clique.setStatus.readyForDev', handler('ready-for-dev')),
+        vscode.commands.registerCommand('clique.setStatus.inProgress', handler('in-progress')),
+        vscode.commands.registerCommand('clique.setStatus.review', handler('review')),
+        vscode.commands.registerCommand('clique.setStatus.done', handler('done'))
+    ];
 }
 
 export function deactivate() {
     if (fileWatcher) {
         fileWatcher.dispose();
-    }
-    if (nativeWatcher) {
-        nativeWatcher.close();
     }
 }
