@@ -1,27 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'yaml';
-
-export type StoryStatus = 'backlog' | 'drafted' | 'ready-for-dev' | 'in-progress' | 'review' | 'done' | 'optional' | 'completed';
-
-export interface Story {
-    id: string;
-    status: StoryStatus;
-    epicId: string;
-}
-
-export interface Epic {
-    id: string;
-    name: string;
-    status: StoryStatus;
-    stories: Story[];
-}
-
-export interface SprintData {
-    project: string;
-    projectKey: string;
-    epics: Epic[];
-}
+import { Story, Epic, SprintData, StoryStatus } from './types';
 
 export function parseSprintStatus(filePath: string): SprintData | null {
     if (!fs.existsSync(filePath)) {
