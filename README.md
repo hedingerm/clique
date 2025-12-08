@@ -4,12 +4,17 @@ Streamline agent development with the BMad-Method. This VS Code extension reads 
 
 ## Features
 
+- **Phase-Based Workflow UI** - Four tabs for Discovery, Planning, Solutioning, and Implementation phases
+- **Workflow Status Tracking** - Read `bmm-workflow-status.yaml` to show workflow progress
+- **Rich Workflow Cards** - Status icons, agent badges, and notes for each workflow item
+- **Detail Panel** - Click any workflow to see full details and run/skip actions
+- **Welcome View** - Easy initialization when no workflow file exists
 - **Tree View Sidebar** - Display stories grouped by epic with status indicators
 - **Workflow Actions** - Inline play button to run appropriate Claude commands
 - **Status Management** - Right-click to change story status directly
 - **Sprint File Selection** - Search workspace and select which `sprint-status.yaml` to use
 - **Terminal Integration** - Spawn terminals with the correct workflow command
-- **Auto-refresh** - Automatically watches `sprint-status.yaml` for changes
+- **Auto-refresh** - Automatically watches both workflow and sprint status files
 
 ## Workflow State Machine
 
@@ -58,6 +63,36 @@ If your workspace contains multiple `sprint-status.yaml` files:
 
 1. Click the folder icon in the view title bar
 2. Select which file to use from the quick pick menu
+
+## Workflow Status File Format
+
+The extension reads `docs/bmm-workflow-status.yaml` to track BMAD methodology progress:
+
+```yaml
+project: my-project
+selected_track: enterprise
+workflow_status:
+  - id: "product-brief"
+    phase: 0
+    status: "required"
+    agent: "analyst"
+    command: "product-brief"
+    note: "Create product brief first"
+
+  - id: "prd"
+    phase: 1
+    status: "docs/prd.md"
+    agent: "pm"
+    command: "prd"
+    note: "Completed"
+```
+
+### Status Values
+
+- `required` / `optional` / `recommended` - Actionable, shows play button
+- `conditional` - Waiting on prerequisites
+- `skipped` - Explicitly skipped
+- File path (e.g., `docs/prd.md`) - Completed, shows checkmark
 
 ## Sprint Status File Format
 
