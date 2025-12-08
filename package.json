@@ -34,7 +34,11 @@
   ],
   "activationEvents": [
     "workspaceContains:**/sprint-status.yaml",
-    "onView:cliqueStories"
+    "workspaceContains:**/bmm-workflow-status.yaml",
+    "onView:cliqueDiscovery",
+    "onView:cliquePlanning",
+    "onView:cliqueSolutioning",
+    "onView:cliqueImplementation"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -50,8 +54,30 @@
     "views": {
       "clique": [
         {
-          "id": "cliqueStories",
-          "name": "Stories"
+          "id": "cliqueDiscovery",
+          "name": "Discovery",
+          "when": "clique.hasWorkflowFile"
+        },
+        {
+          "id": "cliquePlanning",
+          "name": "Planning",
+          "when": "clique.hasWorkflowFile"
+        },
+        {
+          "id": "cliqueSolutioning",
+          "name": "Solutioning",
+          "when": "clique.hasWorkflowFile"
+        },
+        {
+          "id": "cliqueImplementation",
+          "name": "Implementation",
+          "when": "clique.hasWorkflowFile"
+        },
+        {
+          "id": "cliqueWelcome",
+          "name": "Get Started",
+          "when": "!clique.hasWorkflowFile",
+          "type": "webview"
         }
       ]
     },
@@ -90,6 +116,23 @@
         "command": "clique.selectFile",
         "title": "Select Sprint File",
         "icon": "$(folder-opened)"
+      },
+      {
+        "command": "clique.showWorkflowDetail",
+        "title": "Show Workflow Details"
+      },
+      {
+        "command": "clique.runPhaseWorkflow",
+        "title": "Run Workflow",
+        "icon": "$(play)"
+      },
+      {
+        "command": "clique.skipWorkflow",
+        "title": "Skip Workflow"
+      },
+      {
+        "command": "clique.initializeWorkflow",
+        "title": "Initialize Workflow"
       }
     ],
     "menus": {
@@ -123,6 +166,21 @@
           "command": "clique.setStatus.done",
           "when": "view == cliqueStories && viewItem =~ /^story/",
           "group": "status@5"
+        },
+        {
+          "command": "clique.runPhaseWorkflow",
+          "when": "view =~ /clique(Discovery|Planning|Solutioning|Implementation)/ && viewItem == workflow-actionable",
+          "group": "inline"
+        },
+        {
+          "command": "clique.showWorkflowDetail",
+          "when": "view =~ /clique(Discovery|Planning|Solutioning|Implementation)/ && viewItem =~ /^workflow/",
+          "group": "navigation"
+        },
+        {
+          "command": "clique.skipWorkflow",
+          "when": "view =~ /clique(Discovery|Planning|Solutioning|Implementation)/ && viewItem == workflow-actionable",
+          "group": "workflow@1"
         }
       ],
       "view/title": [
