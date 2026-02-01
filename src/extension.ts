@@ -251,7 +251,7 @@ function showWorkflowDetail(extensionUri: vscode.Uri, item: WorkflowItem): void 
 }
 
 function runPhaseWorkflow(item: WorkflowItem): void {
-    const command = `claude "/bmad:bmm:workflows:${item.command}"`;
+    const command = `claude "/bmad-bmm-${item.command}"`;
     const terminalName = `Clique: ${item.id}`;
     const terminal = vscode.window.createTerminal(terminalName);
     terminal.sendText(command);
@@ -280,7 +280,7 @@ function skipWorkflow(item: WorkflowItem): void {
 }
 
 function runWorkflowInit(): void {
-    const command = 'claude "/bmad:bmm:workflows:workflow-init"';
+    const command = 'claude "/bmad-help"';
     const terminal = vscode.window.createTerminal('Clique: Initialize');
     terminal.sendText(command);
     terminal.show();
@@ -299,7 +299,7 @@ function runStoryWorkflow(storyId: string, status: StoryStatus): void {
         return;
     }
 
-    const command = `claude "/bmad:bmm:workflows:${action.command} ${storyId}"`;
+    const command = `claude "/bmad-bmm-${action.command} ${storyId}"`;
     const terminal = vscode.window.createTerminal(`Clique: ${storyId}`);
     terminal.sendText(command);
     terminal.show();

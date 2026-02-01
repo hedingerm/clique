@@ -162,7 +162,7 @@ export class WorkflowDetailPanel {
 
     <div class="field">
         <div class="label">Command</div>
-        <div class="value"><code>/bmad:bmm:workflows:${item.command}</code></div>
+        <div class="value"><code>/bmad-bmm-${item.command}</code></div>
     </div>
 
     <div class="field">

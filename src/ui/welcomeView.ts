@@ -81,7 +81,7 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
     <h2>Welcome to Clique</h2>
     <p>Get started with the BMAD Method by initializing your project workflow.</p>
     <button onclick="initialize()">Initialize Workflow</button>
-    <p class="hint">This will run workflow-init to set up your project's workflow status file.</p>
+    <p class="hint">This will run BMAD help to guide you through starting your project.</p>
 
     <script>
         const vscode = acquireVsCodeApi();

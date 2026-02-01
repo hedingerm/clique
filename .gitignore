@@ -4,4 +4,6 @@ node_modules/
 *.vsix
 .vscode-test/
 .claude/
+_bmad/
+_bmad-output/
 .DS_Store

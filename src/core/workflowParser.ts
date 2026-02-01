@@ -7,43 +7,67 @@ import { WorkflowData, WorkflowItem } from './types';
 // Mapping of workflow IDs to phases based on BMad methodology
 const WORKFLOW_PHASE_MAP: Record<string, number> = {
     // Phase 0 - Discovery
-    'brainstorm': 0,
-    'brainstorm-project': 0,
+    'brainstorming': 0,
     'research': 0,
+    'create-product-brief': 0,
+    // Legacy aliases
+    'brainstorm': 0,
     'product-brief': 0,
     // Phase 1 - Planning
-    'prd': 1,
-    'validate-prd': 1,
-    'ux-design': 1,
+    'create-prd': 1,
     'create-ux-design': 1,
+    // Legacy aliases
+    'prd': 1,
+    'ux-design': 1,
     // Phase 2 - Solutioning
-    'architecture': 2,
     'create-architecture': 2,
-    'epics-stories': 2,
     'create-epics-and-stories': 2,
-    'test-design': 2,
+    'check-implementation-readiness': 2,
+    // Legacy aliases
+    'architecture': 2,
+    'epics-stories': 2,
     'implementation-readiness': 2,
     // Phase 3 - Implementation
-    'sprint-planning': 3
+    'sprint-planning': 3,
+    'sprint-status': 3,
+    'create-story': 3,
+    'dev-story': 3,
+    'code-review': 3,
+    'correct-course': 3,
+    'retrospective': 3
 };
 
 // Mapping of workflow IDs to agents
 const WORKFLOW_AGENT_MAP: Record<string, string> = {
-    'brainstorm': 'analyst',
-    'brainstorm-project': 'analyst',
+    // Phase 0 - Discovery
+    'brainstorming': 'analyst',
     'research': 'analyst',
+    'create-product-brief': 'analyst',
+    // Legacy aliases
+    'brainstorm': 'analyst',
     'product-brief': 'analyst',
-    'prd': 'pm',
-    'validate-prd': 'pm',
-    'ux-design': 'ux-designer',
+    // Phase 1 - Planning
+    'create-prd': 'pm',
     'create-ux-design': 'ux-designer',
-    'architecture': 'architect',
+    // Legacy aliases
+    'prd': 'pm',
+    'ux-design': 'ux-designer',
+    // Phase 2 - Solutioning
     'create-architecture': 'architect',
-    'epics-stories': 'pm',
     'create-epics-and-stories': 'pm',
-    'test-design': 'tea',
+    'check-implementation-readiness': 'architect',
+    // Legacy aliases
+    'architecture': 'architect',
+    'epics-stories': 'pm',
     'implementation-readiness': 'architect',
-    'sprint-planning': 'sm'
+    // Phase 3 - Implementation
+    'sprint-planning': 'sm',
+    'sprint-status': 'sm',
+    'create-story': 'pm',
+    'dev-story': 'dev',
+    'code-review': 'dev',
+    'correct-course': 'sm',
+    'retrospective': 'sm'
 };
 
 function inferPhase(workflowId: string): number {
